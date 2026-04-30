@@ -2,7 +2,7 @@ import React, { createContext, useContext, useCallback, useEffect, useRef, useSt
 import { v4 as uuidv4 } from 'uuid'
 import { DEFAULT_USER_DATA } from '../types'
 import type { UserData, LogEntry, LogType, Goal, Book, ScheduleBlock, FTag, OracleMessage } from '../types'
-import { loadLocalProfile, saveLocalProfile, loadLocalHistory, saveLocalHistory, restSaveProfile, restPullProfile, restCheckAccess } from '../lib/storage'
+import { loadLocalProfile, saveLocalProfile, loadLocalHistory, saveLocalHistory, cloudSave, cloudLoad, checkUplink } from '../lib/storage'
 import { todayString, completionPct, getBlockXP } from '../lib/xp'
 import { detect5FContext, detectAll5FContext } from '../lib/detect5f'
 
@@ -72,7 +72,7 @@ export function AppProvider({ uid, children, onToast }: Props) {
     saveLocalProfile(uid, data)
     saveLocalHistory(uid, data.history)
     if (saveTimer.current) clearTimeout(saveTimer.current)
-    saveTimer.current = setTimeout(() => restSaveProfile(uid, data).catch(() => {}), 1500)
+    saveTimer.current = setTimeout(() => cloudSave(uid, data).catch(() => {}), 1500)
   }, [uid])
 
   const update = useCallback((updater: (prev: UserData) => UserData) => {
@@ -87,19 +87,19 @@ export function AppProvider({ uid, children, onToast }: Props) {
     update(prev => ({ ...prev, ...patch }))
   }, [update])
 
-  // uplink
+  // cloud uplink
   useEffect(() => {
     let retryTimer: ReturnType<typeof setTimeout>
     async function connect() {
-      const accessible = await restCheckAccess()
-      if (!accessible) {
+      const ok = await checkUplink()
+      if (!ok) {
         setUplinkStatus('offline')
         retryTimer = setTimeout(connect, 30000)
         return
       }
       setUplinkStatus('online')
       onToast('>> UPLINK ESTABLISHED')
-      const cloud = await restPullProfile(uid)
+      const cloud = await cloudLoad(uid)
       if (!cloud) return
       setUserData(prev => {
         if (cloud.xp >= prev.xp) {
@@ -146,7 +146,6 @@ export function AppProvider({ uid, children, onToast }: Props) {
     })
   }, [update])
 
-  // expose applyXpAward via ref for ANIMA intercept
   ;(window as unknown as Record<string, unknown>).__lgx_applyXp = applyXpAward
 
   const deleteLog = useCallback((id: string) => {
@@ -156,7 +155,6 @@ export function AppProvider({ uid, children, onToast }: Props) {
       return {
         ...prev,
         xp: Math.max(0, prev.xp - xpDeduct),
-        xpFloor: 0,
         history: prev.history.filter(e => e.id !== id),
       }
     })
@@ -239,19 +237,16 @@ export function AppProvider({ uid, children, onToast }: Props) {
     }))
   }, [update])
 
-  const showToast = onToast
+  ;(window as unknown as Record<string, unknown>).__lgx_completionPct = () =>
+    completionPct(userData.tasks, userData.schedule)
 
   const value: AppContextValue = {
-    userData, uid, showToast, addLog, deleteLog, toggleTask,
+    userData, uid, showToast: onToast, addLog, deleteLog, toggleTask,
     addGoal, updateGoalState, deleteGoal,
     addBook, updateBookProgress, completeBook, deleteBook,
     addScheduleBlock, deleteScheduleBlock,
     addOracleMessage, updateUserData, uplinkStatus,
   }
-
-  // expose completionPct for ANIMA
-  ;(window as unknown as Record<string, unknown>).__lgx_completionPct = () =>
-    completionPct(userData.tasks, userData.schedule)
 
   return <AppCtx.Provider value={value}>{children}</AppCtx.Provider>
 }

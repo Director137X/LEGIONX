@@ -1,12 +1,9 @@
-import { signOut } from 'firebase/auth'
-import { auth } from '../lib/firebase'
+import { supabase } from '../lib/supabase'
 import { useApp } from '../context/AppContext'
 import { calculateXPAndRank, getStreakTier } from '../lib/xp'
 
-interface Props { uplinkStatus: 'connecting' | 'online' | 'offline' }
-
-export default function Header({ uplinkStatus }: Props) {
-  const { userData } = useApp()
+export default function Header() {
+  const { userData, uplinkStatus } = useApp()
   const { displayXP, rank } = calculateXPAndRank(userData)
   const tier = getStreakTier(userData.streak)
 
@@ -32,8 +29,7 @@ export default function Header({ uplinkStatus }: Props) {
       <div className="flex items-center gap-4">
         {userData.streak > 0 && (
           <div className="hidden sm:flex items-center gap-1">
-            <span className="mono text-[10px]" style={{ color: '#555' }}>🔥</span>
-            <span className="mono text-[10px] font-bold" style={{ color: '#f97316' }}>{userData.streak}d</span>
+            <span className="mono text-[10px]" style={{ color: '#f97316' }}>{userData.streak}d</span>
             <span className="mono text-[10px]" style={{ color: '#333' }}>{tier.label}</span>
           </div>
         )}
@@ -47,7 +43,7 @@ export default function Header({ uplinkStatus }: Props) {
         </div>
 
         <button
-          onClick={() => signOut(auth)}
+          onClick={() => supabase.auth.signOut()}
           className="mono text-[10px] px-2 py-1"
           style={{ color: '#444', border: '1px solid #1a1a1a', borderRadius: '2px', background: 'none' }}
         >
