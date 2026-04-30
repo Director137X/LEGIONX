@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { onAuthStateChanged } from 'firebase/auth'
 import type { User } from 'firebase/auth'
-import { auth } from './lib/firebase'
+import { auth, FIREBASE_CONFIGURED } from './lib/firebase'
 import { AppProvider } from './context/AppContext'
 import AuthPage from './pages/AuthPage'
 import Header from './components/Header'
@@ -36,6 +36,23 @@ export default function App() {
   const showToast = useCallback((msg: string) => {
     setToast(msg)
   }, [])
+
+  if (!FIREBASE_CONFIGURED) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-6 px-6" style={{ background: '#000' }}>
+        <p className="mono text-xs tracking-widest" style={{ color: '#10b981' }}>LEGIONX — COMMAND CENTER</p>
+        <div className="p-6 rounded max-w-sm w-full" style={{ background: '#080808', border: '1px solid rgba(239,68,68,0.4)' }}>
+          <p className="mono text-[10px] mb-3" style={{ color: '#ef4444' }}>CONFIGURATION REQUIRED</p>
+          <p className="text-xs text-white mb-4 leading-relaxed">Firebase environment variables are not set. Add these to your Vercel project settings or <code className="mono text-[10px] px-1 rounded" style={{ background: '#111', color: '#10b981' }}>.env</code> file:</p>
+          <div className="space-y-1">
+            {['VITE_FIREBASE_API_KEY','VITE_FIREBASE_AUTH_DOMAIN','VITE_FIREBASE_PROJECT_ID','VITE_FIREBASE_STORAGE_BUCKET','VITE_FIREBASE_MESSAGING_SENDER_ID','VITE_FIREBASE_APP_ID'].map(k => (
+              <p key={k} className="mono text-[9px] px-2 py-1 rounded" style={{ background: '#111', color: '#6b7280' }}>{k}</p>
+            ))}
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   if (user === undefined) {
     return (
